@@ -1,1 +1,701 @@
-<h1>Prueva</h1>
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Generador de Códigos QR - Con Selector de Resolución</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/tailwindcss/2.2.19/tailwind.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style id="app-style">
+        body {
+            background-color: #f9fafb;
+            font-family: 'Inter', sans-serif;
+        }
+        
+        .container {
+            max-width: 800px;
+        }
+        
+        .qr-preview {
+            min-height: 250px;
+            min-width: 250px;
+            max-width: 300px;
+            max-height: 300px;
+            margin: 0 auto;
+            position: relative;
+            display: flex; 
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .color-picker {
+            -webkit-appearance: none;
+            width: 40px;
+            height: 40px;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            padding: 0;
+        }
+        
+        .color-picker::-webkit-color-swatch {
+            border: none;
+            border-radius: 50%;
+            padding: 0;
+        }
+        
+        .color-picker::-webkit-color-swatch-wrapper {
+            border: none;
+            border-radius: 50%;
+            padding: 0;
+        }
+
+        /* Estilo para la imagen del logo superpuesta en el Preview */
+        .logo-overlay {
+            position: absolute;
+            width: 60px; 
+            height: 60px;
+            border-radius: 8px; 
+            box-shadow: 0 0 5px rgba(0, 0, 0, 0.3);
+            z-index: 15; 
+            pointer-events: none;
+            display: none; 
+            background-color: white; 
+            padding: 5px; 
+            box-sizing: content-box;
+        }
+
+        .logo-overlay img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        
+        .loading-spinner {
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(255, 255, 255, 0.8);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        
+        .spinner {
+            width: 40px;
+            height: 40px;
+            border: 4px solid rgba(0, 0, 0, 0.1);
+            border-left-color: #3b82f6;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+        
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+        
+        .btn-download {
+            transition: all 0.2s ease;
+        }
+        
+        .btn-download:hover {
+            transform: translateY(-2px);
+        }
+        
+        .btn-download:active {
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="py-8 px-4">
+    <div class="container mx-auto bg-white rounded-xl shadow-md p-6 md:p-8">
+        <h1 class="text-3xl font-bold text-center text-gray-800 mb-6">Generador de Códigos QR</h1>
+        
+        <div class="md:flex md:space-x-8">
+            <div class="md:w-1/2 mb-8 md:mb-0">
+                <div class="mb-6">
+                    <div class="flex space-x-4 mb-4">
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="qr-mode" value="url" class="form-radio" checked>
+                            <span class="ml-2">URL</span>
+                        </label>
+                        <label class="inline-flex items-center">
+                            <input type="radio" name="qr-mode" value="wifi" class="form-radio">
+                            <span class="ml-2">Wi-Fi</span>
+                        </label>
+                    </div>
+                    
+                    <div id="url-section">
+                        <label for="url-input" class="block text-sm font-medium text-gray-700 mb-1">Introduce un enlace</label>
+                        <div class="flex space-x-2">
+                            <input type="url" id="url-input" placeholder="https://www.ejemplo.com" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                            <button id="generate-button" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+                                Generar
+                            </button>
+                        </div>
+                    </div>
+                    
+                    <div id="wifi-section" class="hidden">
+                        <div class="mb-3">
+                            <label for="wifi-ssid" class="block text-sm font-medium text-gray-700 mb-1">Nombre de red (SSID)</label>
+                            <input type="text" id="wifi-ssid" placeholder="Mi Red Wi-Fi" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="wifi-password" class="block text-sm font-medium text-gray-700 mb-1">Contraseña</label>
+                            <input type="password" id="wifi-password" placeholder="Contraseña" 
+                                class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                        </div>
+                        
+                        <div class="mb-3">
+                            <label for="wifi-security" class="block text-sm font-medium text-gray-700 mb-1">Tipo de seguridad</label>
+                            <select id="wifi-security" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition">
+                                <option value="WPA">WPA/WPA2</option>
+                                <option value="WEP">WEP</option>
+                                <option value="nopass">Sin contraseña</option>
+                            </select>
+                        </div>
+                        
+                        <button id="generate-wifi-button" class="bg-blue-600 text-white px-4 py-2 rounded-md text-sm font-medium">
+                            Generar
+                        </button>
+                    </div>
+                </div>
+                
+                <div class="mb-6 grid grid-cols-2 gap-4">
+                    <div>
+                        <label for="foreground-color" class="block text-sm font-medium text-gray-700 mb-1">Color del QR</label>
+                        <div class="flex items-center">
+                            <input type="color" id="foreground-color" value="#000000" class="color-picker" data-color-type="foreground">
+                            <span id="foreground-hex" class="ml-2 text-sm text-gray-600">#000000</span>
+                        </div>
+                    </div>
+                    
+                    <div>
+                        <label for="background-color" class="block text-sm font-medium text-gray-700 mb-1">Color de fondo</label>
+                        <div class="flex items-center">
+                            <input type="color" id="background-color" value="#FFFFFF" class="color-picker" data-color-type="background">
+                            <span id="background-hex" class="ml-2 text-sm text-gray-600">#FFFFFF</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mb-6 p-4 border border-gray-200 rounded-lg">
+                    <div class="flex justify-between items-center mb-2">
+                        <label for="logo-toggle" class="block text-sm font-bold text-gray-700">Agregar Logo Central</label>
+                        <input type="checkbox" id="logo-toggle" class="form-checkbox h-5 w-5 text-blue-600 rounded">
+                    </div>
+
+                    <div id="logo-controls-container" class="space-y-3 hidden">
+                        <input type="file" id="logo-file-input" accept="image/*" class="w-full text-sm text-gray-500 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+                        <button id="remove-logo-button" class="text-xs text-red-500 hover:text-red-700" type="button" style="display: none;">
+                            <i class="fas fa-trash mr-1"></i> Eliminar Logo
+                        </button>
+                    </div>
+                </div>
+                
+                <button id="reset-button" class="text-sm text-blue-600 hover:text-blue-800 transition flex items-center">
+                    <i class="fas fa-redo-alt mr-1"></i> Reiniciar
+                </button>
+            </div>
+            
+            <div class="md:w-1/2">
+                <div class="qr-preview bg-gray-100 rounded-lg flex items-center justify-center p-4 mb-6">
+                    <div id="loading-spinner" class="loading-spinner hidden">
+                        <div class="spinner"></div>
+                    </div>
+                    <div id="qr-code-container" class="w-full h-full flex items-center justify-center">
+                        <div id="qr-placeholder" class="text-center text-gray-400">
+                            <i class="fas fa-qrcode text-6xl mb-2"></i>
+                            <p>Introduce un enlace para generar el código QR</p>
+                        </div>
+                    </div>
+                    <img id="logo-overlay" class="logo-overlay" alt="Logo de previsualización" style="display: none;">
+                </div>
+                
+                <div class="mb-4 max-w-sm mx-auto">
+                    <label for="qr-resolution" class="block text-sm font-medium text-gray-700 mb-1">Resolución de Descarga (píxeles)</label>
+                    <select id="qr-resolution" class="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 transition">
+                        <option value="250">Baja (250x250) - Rápida</option>
+                        <option value="500">Media (500x500)</option>
+                        <option value="1000" selected>Alta (1000x1000) - Recomendada</option>
+                        <option value="2000">Muy Alta (2000x2000) - HD</option>
+                        <option value="4000">Máxima (4000x4000) - Impresión Grande</option>
+                    </select>
+                </div>
+                
+                <div class="grid grid-cols-2 gap-3 max-w-sm mx-auto">
+                    <button id="download-png" class="btn-download bg-blue-600 text-white px-3 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center" data-download-format="png">
+                        <i class="fas fa-download mr-1"></i> PNG
+                    </button>
+                    <button id="download-jpg" class="btn-download bg-purple-600 text-white px-3 py-2 rounded-md text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center" data-download-format="jpg">
+                        <i class="fas fa-download mr-1"></i> JPG
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <footer class="container mx-auto mt-8 text-center text-sm text-gray-500">
+        <p>© 2025 QR Code Generator - Todos los derechos reservados</p>
+    </footer>
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    
+    <script id="app-script">
+        document.addEventListener('DOMContentLoaded', function() {
+            // ==========================================================
+            // 1. SELECTORES Y ESTADO
+            // ==========================================================
+            const DOM = {
+                urlInput: document.getElementById('url-input'),
+                fgColorInput: document.getElementById('foreground-color'),
+                bgColorInput: document.getElementById('background-color'),
+                fgHex: document.getElementById('foreground-hex'),
+                bgHex: document.getElementById('background-hex'),
+                
+                qrCodeContainer: document.getElementById('qr-code-container'),
+                qrPlaceholder: document.getElementById('qr-placeholder'),
+                loadingSpinner: document.getElementById('loading-spinner'),
+                resetButton: document.getElementById('reset-button'),
+                downloadButtons: document.querySelectorAll('.btn-download'),
+                
+                modeRadios: document.querySelectorAll('input[name="qr-mode"]'),
+                urlSection: document.getElementById('url-section'),
+                wifiSection: document.getElementById('wifi-section'),
+                generateButton: document.getElementById('generate-button'),
+                generateWifiButton: document.getElementById('generate-wifi-button'),
+                wifiSsid: document.getElementById('wifi-ssid'),
+                wifiPassword: document.getElementById('wifi-password'),
+                wifiSecurity: document.getElementById('wifi-security'),
+                
+                colorPickers: document.querySelectorAll('.color-picker'),
+                qrResolution: document.getElementById('qr-resolution'), // SELECTOR DE RESOLUCIÓN
+
+                // ELEMENTOS DEL LOGO
+                logoToggle: document.getElementById('logo-toggle'),
+                logoControlsContainer: document.getElementById('logo-controls-container'),
+                logoFileInput: document.getElementById('logo-file-input'),
+                removeLogoButton: document.getElementById('remove-logo-button'),
+                logoOverlay: document.getElementById('logo-overlay')
+            };
+
+            let qr = null;
+            let currentMode = 'url';
+            let logoDataUrl = null; 
+            const PREVIEW_SIZE = 250; // Tamaño fijo para la previsualización
+            
+            // ==========================================================
+            // 2. FUNCIONES DE UTILIDAD
+            // ==========================================================
+
+            function resetQRDisplay(message = 'Introduce un enlace para generar el código QR') {
+                DOM.qrCodeContainer.innerHTML = '';
+                
+                DOM.loadingSpinner.classList.add('hidden');
+                DOM.loadingSpinner.style.display = 'none'; 
+                
+                DOM.qrPlaceholder.classList.remove('hidden');
+                DOM.qrPlaceholder.innerHTML = `<i class="fas fa-qrcode text-6xl mb-2"></i><p>${message}</p>`;
+                
+                DOM.downloadButtons.forEach(btn => btn.disabled = true);
+            }
+            
+            function loadSavedSettings() {
+                currentMode = localStorage.getItem('qr-generator-mode') || 'url';
+                
+                // Cargar Inputs
+                DOM.urlInput.value = localStorage.getItem('qr-generator-url') || DOM.urlInput.value;
+                DOM.wifiSsid.value = localStorage.getItem('qr-generator-ssid') || DOM.wifiSsid.value;
+                DOM.wifiPassword.value = localStorage.getItem('qr-generator-password') || DOM.wifiPassword.value;
+                
+                // Cargar Colores
+                DOM.fgColorInput.value = localStorage.getItem('qr-generator-foreground') || DOM.fgColorInput.value;
+                DOM.bgColorInput.value = localStorage.getItem('qr-generator-background') || DOM.bgColorInput.value;
+                DOM.fgHex.textContent = DOM.fgColorInput.value;
+                DOM.bgHex.textContent = DOM.bgColorInput.value;
+
+                // Cargar Resolución
+                DOM.qrResolution.value = localStorage.getItem('qr-generator-resolution') || '1000';
+                
+                if (localStorage.getItem('qr-generator-security')) {
+                    DOM.wifiSecurity.value = localStorage.getItem('qr-generator-security');
+                }
+                
+                // Cargar estado del logo toggle
+                const logoEnabled = localStorage.getItem('qr-generator-logo-enabled') === 'true';
+                DOM.logoToggle.checked = logoEnabled;
+                handleLogoToggle(logoEnabled, false);
+
+                // Aplicar Modo
+                document.querySelector(`input[name="qr-mode"][value="${currentMode}"]`).checked = true;
+                handleModeChange(currentMode, false);
+            }
+
+            // ==========================================================
+            // 3. GENERACIÓN QR
+            // ==========================================================
+
+            function generateQR(colorOnly = false) {
+                let data = '';
+                let isValid = false;
+
+                if (currentMode === 'url') {
+                    data = DOM.urlInput.value.trim();
+                    isValid = !!data;
+                } else if (currentMode === 'wifi') {
+                    data = getWifiString();
+                    isValid = !!DOM.wifiSsid.value.trim();
+                }
+
+                if (!isValid) {
+                    resetQRDisplay(currentMode === 'url' ? 'Introduce un enlace para generar el código QR' : 'Introduce el SSID para generar el código Wi-Fi');
+                    return;
+                }
+                
+                if (!colorOnly) {
+                    DOM.loadingSpinner.classList.remove('hidden');
+                    DOM.loadingSpinner.style.display = 'flex';
+                    DOM.qrPlaceholder.classList.add('hidden');
+                }
+
+                requestAnimationFrame(() => {
+                    DOM.qrCodeContainer.innerHTML = ''; 
+                    
+                    // IMPORTANTE: El tamaño de la previsualización se mantiene fijo para velocidad
+                    qr = new QRCode(DOM.qrCodeContainer, {
+                        text: data,
+                        width: PREVIEW_SIZE, 
+                        height: PREVIEW_SIZE,
+                        colorDark : DOM.fgColorInput.value,
+                        colorLight : DOM.bgColorInput.value,
+                        correctLevel : QRCode.CorrectLevel.H
+                    });
+
+                    // Ocultar Spinner
+                    setTimeout(() => {
+                        DOM.loadingSpinner.classList.add('hidden');
+                        DOM.loadingSpinner.style.display = 'none';
+                        DOM.qrPlaceholder.classList.add('hidden'); 
+                        DOM.downloadButtons.forEach(btn => btn.disabled = false);
+                    }, colorOnly ? 50 : 200);
+                });
+            }
+
+            function getWifiString() {
+                const ssid = DOM.wifiSsid.value.trim();
+                const password = DOM.wifiPassword.value.trim();
+                const security = DOM.wifiSecurity.value;
+                
+                let wifiString = `WIFI:S:${ssid};`;
+                
+                if (security === 'nopass') {
+                    wifiString += 'T:nopass;';
+                } else {
+                    wifiString += `T:${security};P:${password};`;
+                }
+                
+                return wifiString + ';';
+            }
+
+            // Función auxiliar para dibujar un rectángulo redondeado en Canvas
+            function drawRoundedRect(ctx, x, y, width, height, radius) {
+                ctx.beginPath();
+                ctx.moveTo(x + radius, y);
+                ctx.lineTo(x + width - radius, y);
+                ctx.arcTo(x + width, y, x + width, y + radius, radius);
+                ctx.lineTo(x + width, y + height - radius);
+                ctx.arcTo(x + width, y + height, x + width - radius, y + height, radius);
+                ctx.lineTo(x + radius, y + height);
+                ctx.arcTo(x, y + height, x, y + height - radius, radius);
+                ctx.lineTo(x, y + radius);
+                ctx.arcTo(x, y, x + radius, y, radius);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            // ==========================================================
+            // 4. DESCARGA (INCLUYE RESOLUCIÓN DE ALTA CALIDAD)
+            // ==========================================================
+            
+            function downloadQRCode(format) {
+                if (!qr) return;
+
+                const qrCanvasPreview = DOM.qrCodeContainer.querySelector('canvas');
+                if (!qrCanvasPreview) {
+                    alert('Error: No se encontró el elemento Canvas para descargar.');
+                    return;
+                }
+                
+                const DOWNLOAD_SIZE = parseInt(DOM.qrResolution.value); // El tamaño de descarga elegido
+                const MARGIN_OUTER = DOWNLOAD_SIZE * 0.05; // Margen exterior (5% del tamaño)
+                const finalSize = DOWNLOAD_SIZE + 2 * MARGIN_OUTER;
+                
+                const newCanvas = document.createElement('canvas');
+                newCanvas.width = finalSize;
+                newCanvas.height = finalSize;
+                const newCtx = newCanvas.getContext('2d');
+                
+                const backgroundColor = DOM.bgColorInput.value || '#FFFFFF';
+                newCtx.fillStyle = backgroundColor;
+                newCtx.fillRect(0, 0, finalSize, finalSize);
+                
+                // 1. Dibujar el QR escalado (Usamos el canvas de preview como imagen fuente)
+                // Escala: de PREVIEW_SIZE (250) a DOWNLOAD_SIZE
+                newCtx.drawImage(qrCanvasPreview, 
+                    0, 0, PREVIEW_SIZE, PREVIEW_SIZE, // Dimensiones de origen (preview)
+                    MARGIN_OUTER, MARGIN_OUTER, DOWNLOAD_SIZE, DOWNLOAD_SIZE // Dimensiones de destino (descarga)
+                );
+
+
+                // 2. Dibujar el Logo, SI ESTÁ ACTIVADO Y HAY IMAGEN
+                if (DOM.logoToggle.checked && logoDataUrl) {
+                    const LOGO_AREA_RATIO = 0.25; // El logo (con margen) ocupa el 25% del QR
+                    const LOGO_MARGIN_SAFETY = DOWNLOAD_SIZE * 0.01; // Margen de seguridad (1% del tamaño)
+                    const LOGO_CORNER_RADIUS = DOWNLOAD_SIZE * 0.005; // Radio de la esquina (0.5% del tamaño)
+
+                    const logoImage = new Image();
+                    logoImage.onload = function() {
+                        
+                        const logoAreaSize = DOWNLOAD_SIZE * LOGO_AREA_RATIO; 
+                        
+                        const areaX = MARGIN_OUTER + (DOWNLOAD_SIZE - logoAreaSize) / 2;
+                        const areaY = MARGIN_OUTER + (DOWNLOAD_SIZE - logoAreaSize) / 2;
+                        
+                        // --- DIBUJAR EL MARGEN REDONDEADO ---
+                        newCtx.fillStyle = backgroundColor;
+                        drawRoundedRect(newCtx, areaX, areaY, logoAreaSize, logoAreaSize, LOGO_CORNER_RADIUS);
+                        
+                        // 3. Dibujar la imagen real (dentro del área rellenada)
+                        const logoInnerSize = logoAreaSize - (2 * LOGO_MARGIN_SAFETY); 
+
+                        const imageX = areaX + LOGO_MARGIN_SAFETY;
+                        const imageY = areaY + LOGO_MARGIN_SAFETY;
+
+                        // Dibujar el logo
+                        newCtx.drawImage(logoImage, imageX, imageY, logoInnerSize, logoInnerSize);
+                        
+                        // Finalizar y descargar
+                        finalizeDownload(newCanvas, format);
+                    };
+                    logoImage.onerror = function() {
+                         alert('Error al cargar la imagen del logo. Descargando QR sin logo.');
+                         finalizeDownload(newCanvas, format);
+                    };
+                    logoImage.src = logoDataUrl;
+
+                } else {
+                    // Si no hay logo o está apagado, descargar inmediatamente
+                    finalizeDownload(newCanvas, format);
+                }
+            }
+            
+            function finalizeDownload(canvas, format) {
+                const mimeType = format === 'jpg' ? 'image/jpeg' : 'image/png';
+                const extension = format === 'jpg' ? 'jpeg' : 'png';
+                
+                let dataUrl = canvas.toDataURL(mimeType);
+                const filename = `qrcode-${new Date().getTime()}.${extension}`;
+                
+                const link = document.createElement('a');
+                link.href = dataUrl;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+            }
+
+            // ==========================================================
+            // 5. MANEJO DE LOGO (INCLUYE TOGGLE)
+            // ==========================================================
+
+            function handleLogoToggle(isEnabled, shouldRegenerate = true) {
+                localStorage.setItem('qr-generator-logo-enabled', isEnabled);
+                
+                if (isEnabled) {
+                    DOM.logoControlsContainer.classList.remove('hidden');
+                    // Mostrar overlay si hay una imagen cargada
+                    if (logoDataUrl) {
+                         DOM.logoOverlay.style.display = 'block';
+                         DOM.removeLogoButton.style.display = 'inline';
+                    }
+                } else {
+                    DOM.logoControlsContainer.classList.add('hidden');
+                    DOM.logoOverlay.style.display = 'none';
+                }
+
+                if (shouldRegenerate && qr) {
+                    generateQR(true);
+                }
+            }
+
+            function handleLogoUpload(event) {
+                const file = event.target.files[0];
+                if (!file) {
+                    removeLogo(false); // No regenerar
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(e) {
+                    logoDataUrl = e.target.result;
+                    
+                    // Mostrar en la previsualización y el botón de eliminar
+                    DOM.logoOverlay.src = logoDataUrl;
+                    DOM.logoOverlay.style.display = DOM.logoToggle.checked ? 'block' : 'none';
+                    DOM.removeLogoButton.style.display = 'inline';
+
+                    if (qr) generateQR(true); 
+                };
+                reader.readAsDataURL(file);
+            }
+
+            function removeLogo(shouldRegenerate = true) {
+                logoDataUrl = null;
+                DOM.logoFileInput.value = '';
+                DOM.logoOverlay.src = '';
+                DOM.logoOverlay.style.display = 'none';
+                DOM.removeLogoButton.style.display = 'none';
+                
+                if (shouldRegenerate && qr) generateQR(true);
+            }
+
+            // ==========================================================
+            // 6. MANEJO DE EVENTOS
+            // ==========================================================
+            
+            function handleModeChange(modeValue, shouldResetDisplay = true) {
+                currentMode = modeValue;
+                localStorage.setItem('qr-generator-mode', currentMode);
+                
+                if (currentMode === 'url') {
+                    DOM.urlSection.classList.remove('hidden');
+                    DOM.wifiSection.classList.add('hidden');
+                    if (shouldResetDisplay) resetQRDisplay('Introduce un enlace para generar el código QR');
+                } else {
+                    DOM.urlSection.classList.add('hidden');
+                    DOM.wifiSection.classList.remove('hidden');
+                    if (shouldResetDisplay) resetQRDisplay('Introduce el SSID para generar el código Wi-Fi');
+                }
+            }
+            
+            function handleColorChange(event) {
+                const input = event.target;
+                const colorType = input.dataset.colorType;
+                
+                if (colorType === 'foreground') {
+                    DOM.fgHex.textContent = input.value;
+                    localStorage.setItem('qr-generator-foreground', input.value);
+                } else {
+                    DOM.bgHex.textContent = input.value;
+                    localStorage.setItem('qr-generator-background', input.value);
+                }
+                
+                if (qr) {
+                    generateQR(true); 
+                }
+            }
+
+            function handleResolutionChange(event) {
+                localStorage.setItem('qr-generator-resolution', event.target.value);
+                // No es necesario regenerar el QR de vista previa.
+            }
+            
+            function handleInputChange(event) {
+                const id = event.target.id;
+                let key;
+
+                if (id === 'url-input') {
+                    key = 'qr-generator-url';
+                } else if (id === 'wifi-ssid') {
+                    key = 'qr-generator-ssid';
+                } else if (id === 'wifi-password') {
+                    key = 'qr-generator-password';
+                } else if (id === 'wifi-security') {
+                    key = 'qr-generator-security';
+                }
+                
+                if (key) {
+                    localStorage.setItem(key, event.target.value);
+                }
+            }
+
+            function setupEventListeners() {
+                // Generar
+                DOM.generateButton.addEventListener('click', () => generateQR(false));
+                DOM.generateWifiButton.addEventListener('click', () => generateQR(false));
+                
+                // Descarga
+                DOM.downloadButtons.forEach(btn => {
+                    btn.addEventListener('click', (e) => {
+                        const format = e.currentTarget.dataset.downloadFormat;
+                        if (format) downloadQRCode(format);
+                    });
+                });
+
+                // Modo
+                DOM.modeRadios.forEach(radio => {
+                    radio.addEventListener('change', (e) => handleModeChange(e.target.value));
+                });
+                
+                // Colores
+                DOM.colorPickers.forEach(picker => {
+                    picker.addEventListener('input', handleColorChange);
+                });
+
+                // Resolución
+                DOM.qrResolution.addEventListener('change', handleResolutionChange);
+                
+                // Inputs de texto y selección
+                DOM.urlInput.addEventListener('input', handleInputChange);
+                DOM.wifiSsid.addEventListener('input', handleInputChange);
+                DOM.wifiPassword.addEventListener('input', handleInputChange);
+                DOM.wifiSecurity.addEventListener('change', handleInputChange);
+                
+                // Eventos del Logo
+                DOM.logoToggle.addEventListener('change', (e) => handleLogoToggle(e.target.checked));
+                DOM.logoFileInput.addEventListener('change', handleLogoUpload);
+                DOM.removeLogoButton.addEventListener('click', () => removeLogo(true));
+
+                // Reset
+                DOM.resetButton.addEventListener('click', function() {
+                    localStorage.clear();
+                    
+                    DOM.urlInput.value = '';
+                    DOM.wifiSsid.value = '';
+                    DOM.wifiPassword.value = '';
+                    DOM.wifiSecurity.value = 'WPA';
+                    DOM.fgColorInput.value = '#000000';
+                    DOM.bgColorInput.value = '#FFFFFF';
+                    DOM.fgHex.textContent = '#000000';
+                    DOM.bgHex.textContent = '#FFFFFF';
+                    DOM.qrResolution.value = '1000'; // Resetear resolución
+
+                    // Resetear logo
+                    DOM.logoToggle.checked = false;
+                    handleLogoToggle(false, false);
+                    removeLogo(false); 
+
+                    resetQRDisplay();
+                    
+                    DOM.modeRadios[0].checked = true;
+                    handleModeChange('url', false);
+                });
+            }
+
+            // ==========================================================
+            // 7. INICIALIZACIÓN
+            // ==========================================================
+            loadSavedSettings();
+            setupEventListeners();
+        });
+    </script>
+</body>
+</html>
